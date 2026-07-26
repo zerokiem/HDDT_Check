@@ -8,8 +8,8 @@ __pycache__/
 # ảnh hóa đơn, có thể chứa thông tin nhạy cảm)
 archive/
 
-# Claude Code local settings (máy-cụ thể, không chia sẻ)
-.claude/settings.local.json
+# Claude Code local settings/state (máy-cụ thể, không chia sẻ)
+.claude/
 
 # Excel/log/db runtime (đã có .gitignore riêng trong hddt-web/, thêm ở gốc
 # phòng khi chạy thử ở đây)
