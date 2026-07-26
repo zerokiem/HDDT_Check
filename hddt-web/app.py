@@ -22,7 +22,7 @@ from flask_login import (LoginManager, login_user, logout_user,
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, User, Job, LoginLog
+from models import db, User, Job, LoginLog, Setting
 from template import build_template_bytes
 import notify
 
@@ -84,6 +84,29 @@ def admin_required(f):
 def allowed_file(filename):
     return ('.' in filename and
             filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS)
+
+
+def get_setting(key, default=''):
+    row = Setting.query.get(key)
+    return row.value if row and row.value else default
+
+
+def set_setting(key, value):
+    row = Setting.query.get(key)
+    if row is None:
+        row = Setting(key=key)
+        db.session.add(row)
+    row.value = value
+    db.session.commit()
+
+
+def telegram_config():
+    """Token/chat_id hiệu lực: admin chỉnh qua web (lưu DB) được ưu tiên,
+    chưa chỉnh gì thì dùng mặc định từ .env (Config)."""
+    return {
+        'TELEGRAM_BOT_TOKEN': get_setting('TELEGRAM_BOT_TOKEN', Config.TELEGRAM_BOT_TOKEN),
+        'TELEGRAM_CHAT_ID':   get_setting('TELEGRAM_CHAT_ID', Config.TELEGRAM_CHAT_ID),
+    }
 
 
 # ────────────────────────────────────────────────────────────
@@ -189,7 +212,7 @@ def run_checker_job(app, job_id):
             job.error_count     = stats['error']
             job.results_json    = json.dumps(results, ensure_ascii=False)
             db.session.commit()
-            notify.notify_job_done(app.config, job)
+            notify.notify_job_done(telegram_config(), job)
 
         except Exception as e:
             tb = traceback.format_exc()
@@ -200,7 +223,7 @@ def run_checker_job(app, job_id):
                 job.error_msg = str(e)
                 job.completed_at = datetime.utcnow()
                 db.session.commit()
-                notify.notify_job_done(app.config, job)
+                notify.notify_job_done(telegram_config(), job)
             except Exception:
                 pass
         finally:
@@ -235,7 +258,7 @@ def register_routes(app):
                                ip_address=ip, action='login', user_agent=ua)
                 db.session.add(log)
                 db.session.commit()
-                notify.notify_login(app.config, user.username, ip)
+                notify.notify_login(telegram_config(), user.username, ip)
                 flash(f'Chào mừng, {user.username}!', 'success')
                 return redirect(request.args.get('next') or url_for('dashboard'))
             else:
@@ -289,11 +312,22 @@ def register_routes(app):
     @app.route('/')
     @login_required
     def dashboard():
-        recent_jobs = Job.query.order_by(Job.created_at.desc()).limit(10).all()
-        total_jobs  = Job.query.count()
-        total_yes   = db.session.query(db.func.sum(Job.yes_count)).scalar() or 0
-        total_no    = db.session.query(db.func.sum(Job.no_count)).scalar() or 0
-        running     = Job.query.filter_by(status='running').count()
+        q = Job.query
+        if not current_user.is_admin:
+            q = q.filter_by(user_id=current_user.id)
+
+        recent_jobs = q.order_by(Job.created_at.desc()).limit(10).all()
+        total_jobs  = q.count()
+        stats_q     = db.session.query(db.func.sum(Job.yes_count), db.func.sum(Job.no_count))
+        if not current_user.is_admin:
+            stats_q = stats_q.filter(Job.user_id == current_user.id)
+        total_yes, total_no = stats_q.one()
+        total_yes = total_yes or 0
+        total_no  = total_no or 0
+        running_q = Job.query.filter_by(status='running')
+        if not current_user.is_admin:
+            running_q = running_q.filter_by(user_id=current_user.id)
+        running = running_q.count()
         return render_template('dashboard.html',
                                recent_jobs=recent_jobs,
                                total_jobs=total_jobs,
@@ -559,6 +593,29 @@ def register_routes(app):
         logs = LoginLog.query.order_by(
             LoginLog.timestamp.desc()).paginate(page=page, per_page=50)
         return render_template('admin/logs.html', logs=logs)
+
+    @app.route('/admin/telegram', methods=['GET', 'POST'])
+    @login_required
+    @admin_required
+    def admin_telegram():
+        if request.method == 'POST':
+            action = request.form.get('action')
+            if action == 'save':
+                set_setting('TELEGRAM_BOT_TOKEN', request.form.get('bot_token', '').strip())
+                set_setting('TELEGRAM_CHAT_ID', request.form.get('chat_id', '').strip())
+                flash('Đã lưu cấu hình Telegram — có hiệu lực ngay.', 'success')
+            elif action == 'test':
+                cfg = telegram_config()
+                ok, err = notify.send_telegram(
+                    cfg['TELEGRAM_BOT_TOKEN'], cfg['TELEGRAM_CHAT_ID'],
+                    f'🔔 <b>HDDT Checker</b> — Tin nhắn thử từ admin "{current_user.username}".')
+                flash('Đã gửi tin nhắn thử — kiểm tra Telegram.' if ok
+                      else f'Gửi thất bại: {err}', 'success' if ok else 'danger')
+            return redirect(url_for('admin_telegram'))
+
+        return render_template('admin/telegram.html',
+                               bot_token=get_setting('TELEGRAM_BOT_TOKEN', Config.TELEGRAM_BOT_TOKEN),
+                               chat_id=get_setting('TELEGRAM_CHAT_ID', Config.TELEGRAM_CHAT_ID))
 
     @app.route('/admin/jobs')
     @login_required

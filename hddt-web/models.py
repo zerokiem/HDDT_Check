@@ -100,3 +100,13 @@ class LoginLog(db.Model):
 
     def __repr__(self):
         return f'<LoginLog {self.username} {self.action} {self.timestamp}>'
+
+
+class Setting(db.Model):
+    """Cấu hình chỉnh được từ web (chỉ admin) — có hiệu lực ngay, không cần
+    sửa file .env / restart. Trống (không có row) = dùng giá trị mặc định từ
+    .env (xem app.get_setting)."""
+    __tablename__ = 'settings'
+
+    key   = db.Column(db.String(80), primary_key=True)
+    value = db.Column(db.Text, nullable=True)

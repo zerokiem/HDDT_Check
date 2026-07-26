@@ -89,11 +89,13 @@ hiện tại của dự án **đã tránh hoàn toàn `apt-get`** (dùng thẳng
 Playwright chính thức đã có sẵn Chromium) nên không gặp vấn đề này. Nếu bắt
 buộc phải thêm gói mới, cân nhắc tải binary tĩnh qua HTTPS thay vì `apt-get`.
 
-## 7. Vận hành & xử lý sự cố
+## 7. Vị trí lưu dữ liệu, backup, vận hành & xử lý sự cố
 
-Xem [INSTALL_LINUX_PI.md § 6-7](INSTALL_LINUX_PI.md#6-vận-hành-thường-ngày) —
-chỉ nhớ thay `docker compose` bằng `sudo -n /usr/local/bin/docker-compose` khi
-gõ lệnh trên NAS.
+Xem [INSTALL_LINUX_PI.md § 6-9](INSTALL_LINUX_PI.md#6-vị-trí-lưu-dữ-liệu) —
+(vị trí lưu, backup, `stop`/`start`/`restart`/`down`/`up`, xử lý sự cố) — chỉ
+nhớ thay `docker compose` bằng `sudo -n /usr/local/bin/docker-compose` khi gõ
+lệnh trên NAS, và đường dẫn `~/HDDT_Check/hddt-web/data/` trên Pi4 tương ứng
+với `/volume1/docker/hddt-web/hddt-web/data/` (hoặc `DATA_PATH` đã chỉnh) trên NAS.
 
 ### Đăng nhập DSM Reverse Proxy (tuỳ chọn, thay vì mở port 14687 trực tiếp)
 

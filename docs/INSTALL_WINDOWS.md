@@ -75,15 +75,51 @@ khẩu ngay** (Sidebar → Đổi mật khẩu).
 Không cần cấu hình gì thêm — `run_web.py` đã bind `0.0.0.0` sẵn. Từ điện thoại/
 laptop khác cùng mạng LAN hoặc cùng Tailscale, mở `http://<ip-may-nay>:14687`.
 
-## 6. Đổi thư mục dữ liệu (nếu không muốn dùng D:\HDDT_Check)
+## 6. Vị trí lưu dữ liệu
 
-Đặt biến môi trường `DATA_DIR` trước khi chạy, ví dụ:
+Mặc định mọi thứ nằm trong **`D:\HDDT_Check\`**:
+
+| Thư mục/file | Nội dung |
+|---|---|
+| `D:\HDDT_Check\hddt.db` | Database (user, job, lịch sử đăng nhập, cấu hình Telegram đã lưu qua web) |
+| `D:\HDDT_Check\uploads\` | File Excel người dùng đã tải lên |
+| `D:\HDDT_Check\outputs\` | File Excel kết quả **mặc định** (khi không nhập "Thư mục lưu kết quả" lúc upload) |
+| `D:\HDDT_Check\screenshots\job_<id>\` | Ảnh chụp từng job (mặc định) |
+| `D:\HDDT_Check\logs\` | Log từng job (`job_<id>.log`) |
+
+Nếu lúc upload có nhập **"Thư mục lưu kết quả"** riêng (vd `D:\Ke_toan\Thang_7`),
+Excel + ảnh của job đó nằm ở thư mục riêng đó (ảnh trong thư mục con `anh_chup\`),
+**không** nằm trong `D:\HDDT_Check\outputs`.
+
+Đổi thư mục mặc định (nếu không muốn dùng `D:\HDDT_Check`): đặt biến môi trường
+`DATA_DIR` trước khi chạy, ví dụ:
 ```powershell
 $env:DATA_DIR = "E:\Du_lieu_HDDT"
 .\.venv\Scripts\python.exe run_web.py
 ```
 
-## 7. Cập nhật code mới
+## 7. Backup
+
+Chỉ cần backup thư mục `D:\HDDT_Check\` (toàn bộ dữ liệu nằm trong đó — code
+trong `hddt-web\` không cần backup vì đã có trên git). Ví dụ chạy tay hoặc đặt
+Task Scheduler Windows hàng ngày:
+
+```powershell
+$ts = Get-Date -Format "yyyyMMdd"
+Compress-Archive -Path "D:\HDDT_Check\hddt.db","D:\HDDT_Check\outputs","D:\HDDT_Check\uploads" `
+  -DestinationPath "D:\Backup\HDDT_Check_$ts.zip" -Force
+```
+
+## 8. Dừng / chạy lại
+
+- **Chế độ hiển thị**: đóng cửa sổ terminal (hoặc Ctrl+C) = dừng ngay. Chạy lại: `.\.venv\Scripts\python.exe run_web.py`.
+- **Chế độ ẩn** (đã cài Scheduled Task):
+  ```powershell
+  Get-Process pythonw | Stop-Process          # dừng
+  Start-ScheduledTask -TaskName "HDDT Checker Web"   # chạy lại ngay (không cần đăng xuất/đăng nhập)
+  ```
+
+## 9. Cập nhật code mới
 
 ```powershell
 git pull

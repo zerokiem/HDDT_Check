@@ -139,6 +139,9 @@
     <a href="{{ url_for('admin_jobs') }}" class="sidebar-link {% if request.endpoint=='admin_jobs' %}active{% endif %}">
       <i class="bi bi-list-task"></i> Tất cả jobs
     </a>
+    <a href="{{ url_for('admin_telegram') }}" class="sidebar-link {% if request.endpoint=='admin_telegram' %}active{% endif %}">
+      <i class="bi bi-telegram"></i> Cài đặt Telegram
+    </a>
     {% endif %}
   </div>
 

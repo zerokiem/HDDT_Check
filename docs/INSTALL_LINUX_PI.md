@@ -87,26 +87,70 @@ Theo dõi RAM: `docker stats hddt_web`.
 > Không bật thì container vẫn chạy bình thường, chỉ là không có giới hạn RAM
 > cứng — `MAX_CONCURRENT_JOBS=1` vẫn là hàng rào chính chống dùng quá nhiều RAM.
 
-## 6. Vận hành thường ngày
+## 6. Vị trí lưu dữ liệu
+
+Mặc định (chưa chỉnh `DATA_PATH` trong `.env`), toàn bộ dữ liệu nằm tại:
+
+```
+~/HDDT_Check/hddt-web/data/
+├── hddt.db          ← Database (user, job, lịch sử, cấu hình Telegram lưu qua web)
+├── uploads/         ← File Excel đã tải lên
+├── outputs/         ← File Excel kết quả MẶC ĐỊNH (không nhập "Thư mục lưu" lúc upload)
+├── screenshots/     ← Ảnh chụp từng job (mặc định)
+└── logs/            ← Log từng job
+```
+
+Ví dụ trên Pi4 hiện tại: `/home/pi/HDDT_Check/hddt-web/data/`. Nếu lúc upload
+có nhập **"Thư mục lưu kết quả"** riêng, Excel + ảnh của job đó nằm ở đường dẫn
+đã nhập (phải là đường dẫn có thật **bên trong container** — với Docker nghĩa
+là đường dẫn đó phải nằm trong 1 thư mục đã mount, thường chỉ dùng tiện ích
+này khi chạy Windows native; trên Docker nên để trống, dùng mặc định).
+
+## 7. Backup
+
+Dừng container trước khi backup để tránh ghi dở SQLite (chỉ mất vài giây):
+
+```bash
+cd ~/HDDT_Check/hddt-web
+docker compose stop
+tar -czf ~/hddt_backup_$(date +%Y%m%d).tar.gz data/
+docker compose start
+```
+
+Đặt cron chạy hàng đêm nếu muốn tự động (`crontab -e`):
+```
+0 2 * * * cd ~/HDDT_Check/hddt-web && tar -czf ~/backup/hddt_$(date +\%Y\%m\%d).tar.gz data/
+```
+
+## 8. Vận hành thường ngày — Dừng/chạy lại, cập nhật
 
 ```bash
 cd ~/HDDT_Check/hddt-web
 
-docker compose restart        # khởi động lại (sau khi sửa code .py — không cần build lại)
-docker compose down           # dừng hẳn
-docker compose up -d          # chạy lại
+docker compose stop           # DỪNG container (nhẹ máy Pi4 hẳn, dữ liệu vẫn còn nguyên) — dùng lệnh này khi cần "tắt bớt cho nhẹ Pi4"
+docker compose start          # CHẠY LẠI (không build lại, tận dụng image đã có)
+docker compose restart        # khởi động lại nhanh (sau khi sửa code .py — không cần build lại)
+docker compose down           # dừng + xóa container (network/container object) — data/ không mất, image không mất, dùng "up -d" để tạo lại container
+docker compose up -d          # tạo/chạy lại container
 docker compose logs --tail=100
+docker compose ps             # xem đang chạy hay đã dừng
 docker compose build          # chỉ cần khi đổi requirements.txt hoặc Dockerfile
 ```
+
+> **`stop`/`start` vs `down`/`up`**: `stop` chỉ tạm dừng tiến trình bên trong
+> (giữ nguyên container), `start` chạy lại tức thì — dùng cặp này khi chỉ muốn
+> tắt/mở lại cho nhẹ máy. `down` xóa hẳn container (phải tạo lại bằng `up -d`,
+> chậm hơn 1 chút nhưng vẫn không cần build lại, không mất dữ liệu vì `data/`
+> là bind-mount ở ngoài container).
 
 - **Sửa code** (`app.py`, `checker_web.py`...): code được bind-mount, sửa xong
   chỉ cần `docker compose restart`, không cần build lại image.
 - **Cập nhật code mới từ Git**: `git pull && docker compose restart`
   (`docker compose build` thêm nếu `requirements.txt` có đổi).
 - **Dữ liệu** (DB, Excel, ảnh, log) nằm trong `./data` (hoặc `DATA_PATH` đã
-  chỉnh trong `.env`) — không mất khi restart/rebuild container.
+  chỉnh trong `.env`) — không mất khi `stop`/`start`/`restart`/`down`/`up`/rebuild.
 
-## 7. Xử lý sự cố
+## 9. Xử lý sự cố
 
 | Triệu chứng | Cách xử lý |
 |---|---|
