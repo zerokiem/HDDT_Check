@@ -33,6 +33,7 @@ CMD ["gunicorn", \
      "--bind", "0.0.0.0:14687", \
      "--workers", "2", \
      "--threads", "4", \
+     "--preload", \
      "--timeout", "300", \
      "--keep-alive", "5", \
      "--log-level", "info", \
