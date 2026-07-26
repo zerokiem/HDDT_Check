@@ -75,6 +75,18 @@ vụ khác. Nếu Chromium hay bị lỗi/crash giữa chừng, thử tăng `MEM
 
 Theo dõi RAM: `docker stats hddt_web`.
 
+> **Lưu ý Raspberry Pi OS:** mặc định kernel Raspberry Pi OS **tắt memory
+> cgroup controller** (kiểm tra: `cat /proc/cgroups | grep memory` — cột thứ 3
+> = 0 nghĩa là đang tắt), nên `mem_limit` trong `docker-compose.yml` **không
+> thực sự được Docker áp dụng** (kiểm tra: `docker inspect hddt_web --format
+> '{{.HostConfig.Memory}}'` ra `0`) dù không báo lỗi gì. Muốn bật thật, thêm
+> vào cuối dòng `cmdline.txt` (`/boot/cmdline.txt` hoặc `/boot/firmware/cmdline.txt`
+> tùy bản Raspberry Pi OS): `cgroup_enable=memory cgroup_memory=1` rồi
+> **khởi động lại Pi** — đây là thay đổi ảnh hưởng toàn máy (cần reboot), cân
+> nhắc kỹ nếu Pi đang chạy dịch vụ khác 24/7 (Home Assistant, AdGuard...).
+> Không bật thì container vẫn chạy bình thường, chỉ là không có giới hạn RAM
+> cứng — `MAX_CONCURRENT_JOBS=1` vẫn là hàng rào chính chống dùng quá nhiều RAM.
+
 ## 6. Vận hành thường ngày
 
 ```bash
