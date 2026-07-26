@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Kiểm tra Hóa đơn{% endblock %}
+{% block breadcrumb %}Kiểm tra Hóa đơn{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8">
+
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cloud-upload me-2"></i>Tải lên file Excel & Chạy kiểm tra</span>
+        <a href="{{ url_for('download_template') }}" class="btn btn-sm btn-outline-success">
+          <i class="bi bi-file-earmark-arrow-down me-1"></i>Tải file Excel mẫu
+        </a>
+      </div>
+      <div class="card-body">
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+          <div class="mb-4">
+            <label class="form-label fw-semibold">File Excel danh sách hóa đơn <span class="text-danger">*</span></label>
+            <div class="upload-zone border-2 border-dashed border-primary rounded-3 p-4 text-center position-relative"
+                 id="uploadZone" style="cursor:pointer; border-style:dashed!important; border-color:#1a56db!important; background:#f8fbff;">
+              <i class="bi bi-file-earmark-excel" style="font-size:3rem;color:#1a56db;"></i>
+              <p class="mt-2 mb-1 fw-semibold">Kéo thả file vào đây hoặc click để chọn</p>
+              <p class="text-muted small mb-2">Chấp nhận: .xlsx, .xls — Tối đa 50 MB</p>
+              <input type="file" name="excel_file" id="fileInput" accept=".xlsx,.xls"
+                     class="position-absolute top-0 start-0 w-100 h-100 opacity-0" required
+                     style="cursor:pointer;">
+              <div id="fileInfo" class="mt-2 d-none">
+                <span class="badge bg-success fs-6" id="fileName"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-info py-2 small">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Cột bắt buộc:</strong>
+            <code>MST</code>, <code>So_KyHieu_HD</code> (vd: <code>1-C26TAP-00001765</code> — tự tách Ký hiệu/Số HĐ),
+            <code>Loai_HD</code> (GTGT/Ban_hang), <code>Thanh_toan</code>.
+            Chưa có file đúng mẫu? Bấm <strong>"Tải file Excel mẫu"</strong> ở trên.
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="submitBtn">
+            <i class="bi bi-play-circle me-1"></i> Bắt đầu kiểm tra
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Hướng dẫn cột -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-table me-2"></i>Cấu trúc file Excel đầu vào</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0" style="font-size:.82rem;">
+            <thead class="table-light">
+              <tr><th>Tên cột</th><th>Bắt buộc</th><th>Mô tả</th><th>Ví dụ</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>MST</code></td><td><span class="text-danger">✔</span></td><td>Mã số thuế người bán</td><td>0313756193</td></tr>
+              <tr><td><code>Ten_Cty</code></td><td>—</td><td>Tên công ty (tham khảo)</td><td>CÔNG TY TNHH ABC</td></tr>
+              <tr><td><code>So_KyHieu_HD</code></td><td><span class="text-danger">✔</span></td>
+                  <td>Số &amp; Ký hiệu hóa đơn gộp 1 ô — tự tách ra Ký hiệu + Số HĐ</td><td>1-C26TAP-00001765</td></tr>
+              <tr><td><code>Loai_HD</code></td><td><span class="text-danger">✔</span></td><td>GTGT hoặc Ban_hang</td><td>GTGT</td></tr>
+              <tr><td><code>Thanh_toan</code></td><td><span class="text-danger">✔</span></td><td>Tổng tiền (không dấu phẩy)</td><td>746618472</td></tr>
+              <tr><td><code>Tien_thue</code></td><td>—</td><td>Tổng tiền thuế</td><td>67874407</td></tr>
+              <tr><td><code>Ngay</code></td><td>—</td><td>Ngày hóa đơn (tham khảo)</td><td>14/05/2026</td></tr>
+            </tbody>
+          </table>
+          <p class="text-muted small px-3 py-2 mb-0">
+            File cũ đã có sẵn 2 cột riêng <code>Ky_hieu</code> + <code>So_HD</code> vẫn dùng được bình thường,
+            không bắt buộc chuyển sang cột gộp.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const zone = document.getElementById('uploadZone');
+const input = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const fileName = document.getElementById('fileName');
+const submitBtn = document.getElementById('submitBtn');
+
+input.addEventListener('change', () => {
+  if (input.files.length > 0) {
+    fileName.textContent = '📎 ' + input.files[0].name;
+    fileInfo.classList.remove('d-none');
+    zone.style.borderColor = '#059669';
+  }
+});
+
+document.getElementById('uploadForm').addEventListener('submit', () => {
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang tải lên...';
+});
+
+// Drag-and-drop highlight
+['dragover','dragenter'].forEach(e => zone.addEventListener(e, ev => {
+  ev.preventDefault(); zone.style.background = '#eff6ff';
+}));
+['dragleave','drop'].forEach(e => zone.addEventListener(e, () => {
+  zone.style.background = '#f8fbff';
+}));
+</script>
+{% endblock %}

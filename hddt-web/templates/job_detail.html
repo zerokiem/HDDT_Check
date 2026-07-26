@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}Job #{{ job.id }}{% endblock %}
+{% block breadcrumb %}
+  <a href="{{ url_for('history') }}" class="text-decoration-none text-muted">Lịch sử</a>
+  / Job #{{ job.id }}
+{% endblock %}
+
+{% block content %}
+<!-- Header bar -->
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+  <h4 class="mb-0">
+    <i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>
+    Job #{{ job.id }} — {{ job.input_filename }}
+  </h4>
+  <span class="badge badge-{{ job.status }} fs-6">
+    {% if job.status == 'running' %}<span class="spinner-border spinner-border-sm me-1" style="width:.7rem;height:.7rem;"></span>{% endif %}
+    {{ job.status|upper }}
+  </span>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    {% if job.status in ['running','pending'] %}
+    <form method="POST" action="{{ url_for('job_stop', job_id=job.id) }}"
+          onsubmit="return confirm('Dừng job này?')">
+      <button class="btn btn-sm btn-warning"><i class="bi bi-stop-circle me-1"></i>Dừng</button>
+    </form>
+    {% endif %}
+    {% if job.output_path %}
+    <a href="{{ url_for('download_excel', job_id=job.id) }}" class="btn btn-sm btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i>Excel
+    </a>
+    {% endif %}
+    {% if job.screenshot_zip %}
+    <a href="{{ url_for('download_screenshots', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-images me-1"></i>Ảnh (ZIP)
+    </a>
+    {% endif %}
+    {% if job.log_path %}
+    <a href="{{ url_for('download_log', job_id=job.id) }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-file-text me-1"></i>Log
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stats row -->
+<div class="row g-3 mb-4" id="statsRow">
+  <div class="col-6 col-md-2">
+    <div class="card text-center py-3">
+      <div class="fw-bold fs-4 text-primary" id="s-total">{{ job.total }}</div>
+      <div class="text-muted small">Tổng</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center py-3">
+      <div class="fw-bold fs-4 text-secondary" id="s-processed">{{ job.processed }}</div>
+      <div class="text-muted small">Đã xử lý</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center py-3">
+      <div class="fw-bold fs-4 text-success" id="s-yes">{{ job.yes_count }}</div>
+      <div class="text-muted small">✓ YES</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center py-3">
+      <div class="fw-bold fs-4 text-danger" id="s-no">{{ job.no_count }}</div>
+      <div class="text-muted small">✗ NO</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center py-3">
+      <div class="fw-bold fs-4 text-warning" id="s-cap">{{ job.captcha_err }}</div>
+      <div class="text-muted small">⚠ Captcha</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card text-center py-3">
+      <div class="fw-bold fs-4 text-secondary" id="s-err">{{ job.error_count }}</div>
+      <div class="text-muted small">! Lỗi</div>
+    </div>
+  </div>
+</div>
+
+<!-- Progress bar (shown when running) -->
+<div class="card mb-4" id="progressCard" {% if job.status not in ['running','pending'] %}style="display:none!important"{% endif %}>
+  <div class="card-body">
+    <div class="d-flex justify-content-between mb-1 small">
+      <span><i class="bi bi-arrow-repeat spin me-1"></i>Đang kiểm tra...</span>
+      <span id="progressText">{{ job.processed }}/{{ job.total }}</span>
+    </div>
+    <div class="progress">
+      <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+           id="progressBar" style="width:{{ job.progress_pct() }}%"></div>
+    </div>
+    <div class="text-muted small mt-1" id="progressPct">{{ job.progress_pct() }}%</div>
+  </div>
+</div>
+
+<!-- Log viewer -->
+<div class="card mb-4" id="logCard">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-terminal me-2"></i>Log thực thi</span>
+    <button class="btn btn-xs btn-outline-secondary" style="font-size:.75rem;padding:.2rem .5rem;"
+            onclick="scrollLog()"><i class="bi bi-arrow-down-circle"></i> Cuối</button>
+  </div>
+  <div id="log-viewer"></div>
+</div>
+
+<!-- Results table -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-table me-2"></i>Kết quả chi tiết</span>
+    {% if job.status == 'done' %}
+    <span class="text-muted small">{{ results|length }} hóa đơn</span>
+    {% else %}
+    <span class="text-muted small" id="resultNote">Sẽ hiển thị sau khi hoàn thành</span>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-results table-hover mb-0" id="resultsTable">
+        <thead class="table-light" style="font-size:.8rem;">
+          <tr>
+            <th class="ps-3">STT</th>
+            <th>MST</th>
+            <th>Tên công ty</th>
+            <th>Số HĐ</th>
+            <th>Ký hiệu</th>
+            <th>Tiền TT</th>
+            <th>Loại HĐ</th>
+            <th>Ngày HĐ</th>
+            <th>Kết quả</th>
+            <th>Mô tả</th>
+            <th>#Cap</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody">
+          {% for r in results %}
+          <tr class="row-{{ r.Ket_qua }}">
+            <td class="ps-3">{{ r.STT }}</td>
+            <td><code style="font-size:.78rem;">{{ r.MST }}</code></td>
+            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ r.Ten_Cty }}">{{ r.Ten_Cty }}</td>
+            <td>{{ r.So_HD }}</td>
+            <td>{{ r.Ky_hieu }}</td>
+            <td class="text-end">{{ '{:,.0f}'.format(r.Thanh_toan|float) if r.Thanh_toan else '—' }}</td>
+            <td>{{ r.Loai_HD }}</td>
+            <td>{{ r.Ngay }}</td>
+            <td>
+              <span class="badge badge-{{ r.Ket_qua }}" style="font-size:.75rem;">{{ r.Ket_qua }}</span>
+            </td>
+            <td style="max-width:220px;font-size:.78rem;">{{ r.Mo_ta }}</td>
+            <td class="text-center">{{ r.So_lan_captcha }}</td>
+          </tr>
+          {% else %}
+          <tr id="emptyRow"><td colspan="11" class="text-center text-muted py-4">
+            {% if job.status in ['running','pending'] %}
+            <span class="spinner-border spinner-border-sm me-2"></span>Đang xử lý...
+            {% else %}Chưa có dữ liệu{% endif %}
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Info footer -->
+<div class="row g-3 mt-2">
+  <div class="col-md-6">
+    <div class="card"><div class="card-body small">
+      <div class="row g-1">
+        <div class="col-5 text-muted">Người dùng:</div><div class="col-7">{{ job.user.username if job.user else '—' }}</div>
+        <div class="col-5 text-muted">Tạo lúc:</div><div class="col-7">{{ job.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</div>
+        <div class="col-5 text-muted">Bắt đầu:</div><div class="col-7">{{ job.started_at.strftime('%d/%m/%Y %H:%M:%S') if job.started_at else '—' }}</div>
+        <div class="col-5 text-muted">Kết thúc:</div><div class="col-7">{{ job.completed_at.strftime('%d/%m/%Y %H:%M:%S') if job.completed_at else '—' }}</div>
+        <div class="col-5 text-muted">Thời gian:</div><div class="col-7">{{ job.duration_str() }}</div>
+      </div>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card"><div class="card-body small">
+      <div class="row g-1">
+        <div class="col-5 text-muted">File đầu vào:</div><div class="col-7 text-truncate">{{ job.input_filename }}</div>
+        <div class="col-5 text-muted">File kết quả:</div><div class="col-7 text-truncate">{{ job.output_filename or '—' }}</div>
+        {% if job.error_msg %}
+        <div class="col-12 mt-2">
+          <div class="alert alert-danger py-2 mb-0 small">
+            <i class="bi bi-exclamation-triangle me-1"></i>{{ job.error_msg }}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const JOB_ID   = {{ job.id }};
+const STATUS   = "{{ job.status }}";
+let polling    = STATUS === 'running' || STATUS === 'pending';
+let logOffset  = 0;
+const logEl    = document.getElementById('log-viewer');
+const tbody    = document.getElementById('resultsBody');
+
+function scrollLog() { logEl.scrollTop = logEl.scrollHeight; }
+
+function fetchStatus() {
+  fetch(`/api/job/${JOB_ID}/status`)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('s-total').textContent     = d.total;
+      document.getElementById('s-processed').textContent = d.processed;
+      document.getElementById('s-yes').textContent       = d.yes;
+      document.getElementById('s-no').textContent        = d.no;
+      document.getElementById('s-cap').textContent       = d.captcha_err;
+      document.getElementById('s-err').textContent       = d.error;
+
+      const pct = d.pct;
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressText').textContent = d.processed + '/' + d.total;
+      document.getElementById('progressPct').textContent  = pct + '%';
+
+      if (d.status !== 'running' && d.status !== 'pending') {
+        polling = false;
+        document.getElementById('progressCard').style.display = 'none';
+        if (d.status === 'done') {
+          setTimeout(() => location.reload(), 1000);
+        }
+      }
+    }).catch(() => {});
+}
+
+function fetchLog() {
+  fetch(`/api/job/${JOB_ID}/log`)
+    .then(r => r.json())
+    .then(d => {
+      logEl.textContent = d.lines.join('');
+      scrollLog();
+    }).catch(() => {});
+}
+
+if (polling) {
+  setInterval(fetchStatus, 2000);
+  setInterval(fetchLog, 2500);
+  fetchStatus();
+  fetchLog();
+} else {
+  // Load log once for finished jobs
+  fetchLog();
+}
+
+// DataTable for results (only if done)
+{% if job.status == 'done' and results %}
+$(document).ready(function() {
+  $('#resultsTable').DataTable({
+    pageLength: 25,
+    language: {
+      search: 'Tìm kiếm:',
+      lengthMenu: 'Hiện _MENU_ dòng',
+      info: 'Hiển thị _START_–_END_ / _TOTAL_ hóa đơn',
+      paginate: { previous: '‹', next: '›' },
+      zeroRecords: 'Không có kết quả.',
+    },
+    order: [[0, 'asc']],
+    columnDefs: [{ orderable: false, targets: [9] }]
+  });
+});
+{% endif %}
+</script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { display: inline-block; animation: spin 1s linear infinite; }
+</style>
+{% endblock %}

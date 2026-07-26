@@ -1,0 +1,17 @@
+# Môi trường ảo / cache Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Dữ liệu cục bộ — file cũ giữ tham khảo, không đưa lên git (business data,
+# ảnh hóa đơn, có thể chứa thông tin nhạy cảm)
+archive/
+
+# Claude Code local settings (máy-cụ thể, không chia sẻ)
+.claude/settings.local.json
+
+# Excel/log/db runtime (đã có .gitignore riêng trong hddt-web/, thêm ở gốc
+# phòng khi chạy thử ở đây)
+*.db
+*.log

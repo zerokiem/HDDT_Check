@@ -1,0 +1,45 @@
+# HDDT Checker Web - chay tren BAT KY may nao co Docker: NAS Synology, Pi4,
+# may chu Linux, WSL2, Docker Desktop...
+#
+# CAI DAT 1 LENH:
+#   git clone git@github.com:zerokiem/HDDT_Check.git
+#   cd HDDT_Check/hddt-web
+#   cp .env.example .env      # sua PORT/DATA_PATH neu can (xem chu thich .env.example)
+#   docker compose up -d      # tren NAS Synology: sudo docker-compose up -d
+#
+# Truy cap: http://<ip-may-chay>:14687 (mac dinh port 14687, sua qua .env)
+#
+# HTTP thuong (chua HTTPS) - trang co dang nhap user/pass, KHONG nen mo port
+# nay ra thang internet neu chua co lop HTTPS/reverse-proxy phia truoc
+# (Cloudflare Tunnel, Caddy...). Xem docs/INSTALL_LINUX_PI.md.
+services:
+  web:
+    build: .
+    image: hddt-web:latest
+    container_name: hddt_web
+    restart: unless-stopped
+    ports:
+      - "${PORT:-14687}:14687"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-hddt-super-secret-key-change-me-2025}
+      - DATA_DIR=/data
+      - PORT=14687
+      - MAX_CONCURRENT_JOBS=${MAX_CONCURRENT_JOBS:-1}
+      - MAX_CAPTCHA_AUTO=${MAX_CAPTCHA_AUTO:-5}
+      - PAGE_WAIT=${PAGE_WAIT:-2.5}
+      - TZ=${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      # Code = chính thư mục hddt-web/ này (app.py, checker_web.py...). Sửa
+      # code xong chỉ cần `docker compose restart`, không cần build lại image.
+      - .:/app
+      # Dữ liệu: DB, Excel upload/output, ảnh chụp, log. Mặc định ./data ngay
+      # trong thư mục này. Đổi qua DATA_PATH trong .env để lưu chỗ khác (vd
+      # NAS: /volume1/docker/hddt-web/data).
+      - ${DATA_PATH:-./data}:/data
+    # Playwright cần shared memory đủ lớn cho Chromium (đã tắt sandbox riêng
+    # của Chromium qua --no-sandbox trong checker_web.py nên không cần
+    # cap_add/security_opt đặc biệt).
+    shm_size: "512mb"
+    # Giới hạn RAM — quan trọng trên máy chia sẻ với dịch vụ khác (Pi4/NAS ít
+    # RAM trống). Tăng lên nếu máy dư RAM. Bỏ dòng này nếu không muốn giới hạn.
+    mem_limit: ${MEM_LIMIT:-768m}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập — HDDT Checker</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: linear-gradient(135deg, #1e2a3a 0%, #2d3f55 100%); min-height: 100vh;
+           display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
+    .login-card { background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+                  padding: 2.5rem 2.5rem; width: 100%; max-width: 400px; }
+    .login-logo { text-align: center; margin-bottom: 1.5rem; }
+    .login-logo .icon { font-size: 3rem; }
+    .login-logo h1 { font-size: 1.4rem; font-weight: 700; color: #1e2a3a; margin: .5rem 0 .25rem; }
+    .login-logo p { color: #64748b; font-size: .82rem; margin: 0; }
+    .form-control:focus { border-color: #1a56db; box-shadow: 0 0 0 3px rgba(26,86,219,.15); }
+    .btn-login { background: #1a56db; border: none; font-weight: 600; letter-spacing: .02em; }
+    .btn-login:hover { background: #1e429f; }
+    .divider { border-top: 1px solid #e2e8f0; margin: 1.25rem 0; }
+    .input-group-text { background: #f8fafc; border-right: none; color: #64748b; }
+    .form-control { border-left: none; }
+    .form-control:focus + * { border-color: #1a56db; }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <div class="login-logo">
+    <div class="icon">🧾</div>
+    <h1>HDDT Checker</h1>
+    <p>Kiểm tra Hóa đơn Điện tử — Tổng cục Thuế</p>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} py-2 mb-3" style="font-size:.875rem;">{{ msg }}</div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('login') }}">
+    <div class="mb-3">
+      <label class="form-label fw-600 small">Tên đăng nhập</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-person"></i></span>
+        <input type="text" name="username" class="form-control" placeholder="admin"
+               required autofocus autocomplete="username">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-600 small">Mật khẩu</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+        <input type="password" name="password" id="pw" class="form-control"
+               placeholder="••••••••" required autocomplete="current-password">
+        <button class="btn btn-outline-secondary border-start-0" type="button"
+                onclick="var p=document.getElementById('pw');p.type=p.type=='password'?'text':'password'">
+          <i class="bi bi-eye"></i>
+        </button>
+      </div>
+    </div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" name="remember" id="remember">
+      <label class="form-check-label small text-muted" for="remember">Ghi nhớ đăng nhập</label>
+    </div>
+    <button type="submit" class="btn btn-login btn-primary w-100 py-2">
+      <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+    </button>
+  </form>
+
+  <div class="divider"></div>
+  <p class="text-center text-muted small mb-0">
+    <i class="bi bi-shield-lock me-1"></i>
+    Hệ thống chỉ dành cho người dùng được cấp quyền
+  </p>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

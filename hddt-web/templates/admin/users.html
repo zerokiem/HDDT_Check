@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Quản lý người dùng{% endblock %}
+{% block breadcrumb %}Admin / Người dùng{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h4 class="mb-0"><i class="bi bi-people me-2 text-primary"></i>Quản lý người dùng</h4>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+    <i class="bi bi-person-plus me-1"></i>Thêm người dùng
+  </button>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:.875rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">#</th>
+            <th>Tên đăng nhập</th>
+            <th>Email</th>
+            <th>Quyền</th>
+            <th>Trạng thái</th>
+            <th>Ngày tạo</th>
+            <th>Đăng nhập cuối</th>
+            <th>Số job</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="ps-3 text-muted">{{ u.id }}</td>
+            <td>
+              <i class="bi bi-person-circle me-1 text-muted"></i>
+              <strong>{{ u.username }}</strong>
+              {% if u.id == current_user.id %}
+              <span class="badge bg-info text-dark ms-1" style="font-size:.65rem;">Bạn</span>
+              {% endif %}
+            </td>
+            <td class="text-muted">{{ u.email or '—' }}</td>
+            <td>
+              {% if u.is_admin %}
+              <span class="badge bg-warning text-dark">Admin</span>
+              {% else %}
+              <span class="badge bg-secondary">User</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.is_active %}
+              <span class="badge bg-success">Hoạt động</span>
+              {% else %}
+              <span class="badge bg-danger">Vô hiệu</span>
+              {% endif %}
+            </td>
+            <td class="text-muted">{{ u.created_at.strftime('%d/%m/%Y') }}</td>
+            <td class="text-muted">{{ u.last_login.strftime('%d/%m %H:%M') if u.last_login else '—' }}</td>
+            <td class="text-center">{{ u.jobs.count() }}</td>
+            <td>
+              <div class="d-flex gap-1">
+                <!-- Toggle active -->
+                {% if u.id != current_user.id %}
+                <form method="POST" action="{{ url_for('admin_toggle_user', uid=u.id) }}">
+                  <button class="btn btn-xs btn-outline-{% if u.is_active %}warning{% else %}success{% endif %}"
+                          style="font-size:.72rem;padding:.2rem .45rem;"
+                          title="{% if u.is_active %}Vô hiệu hóa{% else %}Kích hoạt{% endif %}">
+                    <i class="bi bi-{% if u.is_active %}slash-circle{% else %}check-circle{% endif %}"></i>
+                  </button>
+                </form>
+                {% endif %}
+
+                <!-- Reset password -->
+                <button class="btn btn-xs btn-outline-secondary" style="font-size:.72rem;padding:.2rem .45rem;"
+                        data-bs-toggle="modal" data-bs-target="#resetPwModal"
+                        data-uid="{{ u.id }}" data-uname="{{ u.username }}"
+                        title="Đặt lại mật khẩu">
+                  <i class="bi bi-key"></i>
+                </button>
+
+                <!-- Delete -->
+                {% if u.id != current_user.id %}
+                <form method="POST" action="{{ url_for('admin_delete_user', uid=u.id) }}"
+                      onsubmit="return confirm('Xóa user {{ u.username }}? Không thể khôi phục!')">
+                  <button class="btn btn-xs btn-outline-danger" style="font-size:.72rem;padding:.2rem .45rem;"
+                          title="Xóa">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add user -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('admin_add_user') }}">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Thêm người dùng mới</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Tên đăng nhập <span class="text-danger">*</span></label>
+            <input type="text" name="username" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="(không bắt buộc)">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Mật khẩu <span class="text-danger">*</span></label>
+            <input type="password" name="password" class="form-control" minlength="8" required
+                   placeholder="Ít nhất 8 ký tự">
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_admin" id="isAdmin">
+            <label class="form-check-label small" for="isAdmin">Cấp quyền Admin</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Reset password -->
+<div class="modal fade" id="resetPwModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" id="resetPwForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-key me-2"></i>Đặt lại mật khẩu</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Đặt lại mật khẩu cho: <strong id="resetUname"></strong></p>
+          <label class="form-label fw-semibold small">Mật khẩu mới <span class="text-danger">*</span></label>
+          <input type="password" name="new_password" class="form-control" minlength="8" required
+                 placeholder="Ít nhất 8 ký tự">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-warning">Đặt lại</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('resetPwModal').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  const uid   = btn.dataset.uid;
+  const uname = btn.dataset.uname;
+  document.getElementById('resetUname').textContent = uname;
+  document.getElementById('resetPwForm').action = `/admin/users/${uid}/reset-password`;
+});
+</script>
+{% endblock %}

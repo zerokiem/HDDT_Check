@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Lịch sử kiểm tra{% endblock %}
+{% block breadcrumb %}Lịch sử kiểm tra{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h4 class="mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Lịch sử kiểm tra</h4>
+  <a href="{{ url_for('upload') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-circle me-1"></i>Kiểm tra mới
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="histTable" style="font-size:.875rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">#</th>
+            {% if admin_view is defined and admin_view %}<th>User</th>{% endif %}
+            <th>File đầu vào</th>
+            <th>Tổng</th>
+            <th class="text-success">YES</th>
+            <th class="text-danger">NO</th>
+            <th class="text-warning">Cap</th>
+            <th>Trạng thái</th>
+            <th>Thời gian chạy</th>
+            <th>Ngày tạo</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in jobs.items %}
+          <tr>
+            <td class="ps-3 text-muted">{{ job.id }}</td>
+            {% if admin_view is defined and admin_view %}
+            <td>{{ job.user.username if job.user else '—' }}</td>
+            {% endif %}
+            <td>
+              <i class="bi bi-file-earmark-excel text-success me-1"></i>
+              {{ job.input_filename }}
+            </td>
+            <td><strong>{{ job.total }}</strong></td>
+            <td class="text-success fw-semibold">{{ job.yes_count }}</td>
+            <td class="text-danger fw-semibold">{{ job.no_count }}</td>
+            <td class="text-warning fw-semibold">{{ job.captcha_err }}</td>
+            <td>
+              <span class="badge badge-{{ job.status }}" style="font-size:.75rem;">
+                {% if job.status == 'running' %}
+                <span class="spinner-border spinner-border-sm" style="width:.6rem;height:.6rem;"></span>
+                {% endif %}
+                {{ job.status|upper }}
+              </span>
+            </td>
+            <td class="text-muted">{{ job.duration_str() }}</td>
+            <td class="text-muted">{{ job.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{{ url_for('job_detail', job_id=job.id) }}"
+                   class="btn btn-xs btn-outline-secondary" style="font-size:.72rem;padding:.2rem .45rem;"
+                   title="Xem chi tiết"><i class="bi bi-eye"></i></a>
+                {% if job.output_path %}
+                <a href="{{ url_for('download_excel', job_id=job.id) }}"
+                   class="btn btn-xs btn-outline-success" style="font-size:.72rem;padding:.2rem .45rem;"
+                   title="Tải Excel"><i class="bi bi-download"></i></a>
+                {% endif %}
+                {% if job.screenshot_zip %}
+                <a href="{{ url_for('download_screenshots', job_id=job.id) }}"
+                   class="btn btn-xs btn-outline-primary" style="font-size:.72rem;padding:.2rem .45rem;"
+                   title="Tải ảnh ZIP"><i class="bi bi-images"></i></a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="11" class="text-center text-muted py-5">
+            <i class="bi bi-inbox fs-2 d-block mb-2"></i>Chưa có lần kiểm tra nào.
+            <a href="{{ url_for('upload') }}" class="d-block mt-2">Bắt đầu kiểm tra ngay</a>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if jobs.pages > 1 %}
+  <div class="card-footer d-flex justify-content-between align-items-center">
+    <span class="text-muted small">
+      Trang {{ jobs.page }}/{{ jobs.pages }} — {{ jobs.total }} job
+    </span>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if jobs.has_prev %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ jobs.prev_num }}">‹</a>
+        </li>
+        {% endif %}
+        {% for p in jobs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if p %}
+          <li class="page-item {% if p == jobs.page %}active{% endif %}">
+            <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+        {% if jobs.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ jobs.next_num }}">›</a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
