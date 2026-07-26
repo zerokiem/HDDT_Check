@@ -39,6 +39,25 @@
             Chưa có file đúng mẫu? Bấm <strong>"Tải file Excel mẫu"</strong> ở trên.
           </div>
 
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Thư mục lưu kết quả (Excel + ảnh chụp)</label>
+            <input type="text" name="save_dir" class="form-control form-control-sm"
+                   placeholder="Để trống = lưu mặc định ({{ default_save_dir }})">
+            <div class="form-text">
+              Nhập đường dẫn cụ thể (vd <code>D:\Ke_toan\Thang_7_2026</code>) nếu muốn lưu riêng lần này
+              — để trống thì dùng thư mục mặc định.
+            </div>
+          </div>
+
+          {% if is_windows %}
+          <div class="form-check mb-4">
+            <input class="form-check-input" type="checkbox" name="show_browser" id="showBrowser">
+            <label class="form-check-label" for="showBrowser">
+              Hiện cửa sổ trình duyệt khi chạy (theo dõi trực tiếp) — bỏ trống để chạy ẩn (mặc định, nhanh hơn)
+            </label>
+          </div>
+          {% endif %}
+
           <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="submitBtn">
             <i class="bi bi-play-circle me-1"></i> Bắt đầu kiểm tra
           </button>

@@ -6,6 +6,7 @@ Flask + SQLite + Playwright headless
 """
 
 import os
+import sys
 import json
 import shutil
 import threading
@@ -23,6 +24,7 @@ from werkzeug.utils import secure_filename
 from config import Config
 from models import db, User, Job, LoginLog
 from template import build_template_bytes
+import notify
 
 # ────────────────────────────────────────────────────────────
 # App factory
@@ -127,18 +129,38 @@ def run_checker_job(app, job_id):
 
         stop_event = app._stop_events.get(job_id)
 
+        # Thư mục lưu — dùng đường dẫn người dùng tự nhập lúc upload (nếu có
+        # và tạo được), ngược lại dùng mặc định DATA_DIR/outputs,
+        # DATA_DIR/screenshots.
+        out_dir = str(app.config['OUTPUT_DIR'])
+        scr_dir = str(app.config['SCREENSHOT_BASE'] / f'job_{job_id}')
+        if job.custom_save_dir:
+            try:
+                os.makedirs(job.custom_save_dir, exist_ok=True)
+                out_dir = job.custom_save_dir
+                scr_dir = os.path.join(job.custom_save_dir, 'anh_chup')
+                log_cb(f'[*] Lưu kết quả tại thư mục tự chọn: {job.custom_save_dir}')
+            except Exception as e:
+                log_cb(f'[!] Không dùng được thư mục "{job.custom_save_dir}" ({e}) '
+                       f'— chuyển về thư mục mặc định.')
+
+        # Headless — mặc định ẩn. Chỉ cho phép hiện cửa sổ Chromium khi thật
+        # sự có màn hình (Windows chạy trực tiếp) — Docker/Linux luôn ép ẩn.
+        headless = True if sys.platform != 'win32' else bool(job.headless)
+        if not headless:
+            log_cb('[*] Chạy HIỆN cửa sổ Chromium (chế độ debug/quan sát trực tiếp).')
+
         try:
             from checker_web import InvoiceCheckerWeb
 
-            scr_dir = str(app.config['SCREENSHOT_BASE'] / f'job_{job_id}')
-
             checker = InvoiceCheckerWeb(
                 input_path     = job.input_path,
-                output_dir     = str(app.config['OUTPUT_DIR']),
+                output_dir     = out_dir,
                 screenshot_dir = scr_dir,
                 chromium_path  = app.config.get('CHROMIUM_PATH'),
                 max_captcha    = app.config['MAX_CAPTCHA_AUTO'],
                 page_wait      = app.config['PAGE_WAIT'],
+                headless       = headless,
                 progress_cb    = progress_cb,
                 log_cb         = log_cb,
                 stop_event     = stop_event,
@@ -146,8 +168,10 @@ def run_checker_job(app, job_id):
 
             results, stats, out_path = checker.run()
 
-            # Zip screenshots
-            zip_path = str(app.config['OUTPUT_DIR'] / f'job_{job_id}_screenshots.zip')
+            # Zip ảnh — đặt tên trùng với file Excel kết quả, thêm hậu tố
+            # "_anh" (vd 260726_KQ_check_hoa_don_01.xlsx -> ..._01_anh.zip).
+            excel_stem = Path(out_path).stem
+            zip_path   = os.path.join(out_dir, f'{excel_stem}_anh.zip')
             checker.zip_screenshots(zip_path)
 
             # Save to DB
@@ -157,7 +181,7 @@ def run_checker_job(app, job_id):
             job.output_path     = out_path
             job.output_filename = os.path.basename(out_path)
             job.screenshot_dir  = scr_dir
-            job.screenshot_zip  = zip_path
+            job.screenshot_zip  = zip_path if os.path.exists(zip_path) else None
             job.total           = len(results)
             job.yes_count       = stats['yes']
             job.no_count        = stats['no']
@@ -165,6 +189,7 @@ def run_checker_job(app, job_id):
             job.error_count     = stats['error']
             job.results_json    = json.dumps(results, ensure_ascii=False)
             db.session.commit()
+            notify.notify_job_done(app.config, job)
 
         except Exception as e:
             tb = traceback.format_exc()
@@ -175,6 +200,7 @@ def run_checker_job(app, job_id):
                 job.error_msg = str(e)
                 job.completed_at = datetime.utcnow()
                 db.session.commit()
+                notify.notify_job_done(app.config, job)
             except Exception:
                 pass
         finally:
@@ -209,6 +235,7 @@ def register_routes(app):
                                ip_address=ip, action='login', user_agent=ua)
                 db.session.add(log)
                 db.session.commit()
+                notify.notify_login(app.config, user.username, ip)
                 flash(f'Chào mừng, {user.username}!', 'success')
                 return redirect(request.args.get('next') or url_for('dashboard'))
             else:
@@ -304,11 +331,16 @@ def register_routes(app):
             saved_path  = str(app.config['UPLOAD_DIR'] / saved_name)
             f.save(saved_path)
 
+            save_dir     = request.form.get('save_dir', '').strip() or None
+            show_browser = bool(request.form.get('show_browser'))
+
             job = Job(
-                user_id        = current_user.id,
-                input_filename = filename,
-                input_path     = saved_path,
-                status         = 'pending',
+                user_id         = current_user.id,
+                input_filename  = filename,
+                input_path      = saved_path,
+                status          = 'pending',
+                custom_save_dir = save_dir,
+                headless        = not show_browser,
             )
             db.session.add(job)
             db.session.commit()
@@ -327,7 +359,7 @@ def register_routes(app):
             flash(f'Đã tạo job #{job.id}. Đang xử lý...', 'success')
             return redirect(url_for('job_detail', job_id=job.id))
 
-        return render_template('upload.html')
+        return render_template('upload.html', default_save_dir=str(app.config['OUTPUT_DIR']))
 
     @app.route('/template/download')
     @login_required
@@ -420,7 +452,7 @@ def register_routes(app):
             return redirect(url_for('job_detail', job_id=job_id))
         return send_file(job.screenshot_zip,
                          as_attachment=True,
-                         download_name=f'job_{job_id}_screenshots.zip')
+                         download_name=os.path.basename(job.screenshot_zip))
 
     @app.route('/job/<int:job_id>/download/log')
     @login_required
@@ -555,7 +587,9 @@ def register_routes(app):
     # ── Context processors ────────────────────────────────────
     @app.context_processor
     def inject_globals():
-        return dict(app_name='HDDT Checker', now=datetime.utcnow())
+        return dict(app_name='HDDT Checker', now=datetime.utcnow(),
+                    copyright_owner=app.config.get('COPYRIGHT_OWNER'),
+                    is_windows=(sys.platform == 'win32'))
 
 
 # ────────────────────────────────────────────────────────────

@@ -46,26 +46,36 @@ def _build_data_sheet(wb):
     ws = wb.active
     ws.title = 'Danh_sach_hoa_don'
 
+    # QUAN TRỌNG: tiêu đề dòng 1 PHẢI đúng bằng tên cột kỹ thuật (key, vd
+    # "So_KyHieu_HD") vì code đọc file bằng đúng tên này (xem input_utils.py,
+    # checker_web.py) — không phải nhãn tiếng Việt đẹp. Nhãn tiếng Việt +
+    # dấu (*) bắt buộc đặt trong comment của ô, và trong sheet "Huong_dan".
     ws.row_dimensions[1].height = 30
     for ci, (key, header, width, required) in enumerate(TEMPLATE_COLUMNS, 1):
-        c = ws.cell(row=1, column=ci, value=header + (' (*)' if required else ''))
+        c = ws.cell(row=1, column=ci, value=key)
         c.fill = HEADER_FILL
         c.font = HEADER_FONT
         c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         c.border = BORDER
+        c.comment = Comment(
+            f'{header}{" (bắt buộc)" if required else " (tùy chọn)"}',
+            'HDDT Checker', width=200, height=40)
         ws.column_dimensions[get_column_letter(ci)].width = width
 
     ws.cell(row=1, column=3).comment = Comment(
+        'Số & Ký hiệu hóa đơn (bắt buộc)\n'
         'Nhập gộp theo mẫu: <mẫu số>-<ký hiệu>-<số hóa đơn>\n'
         'Ví dụ: 1-C26TAP-00001765\n'
         '→ Hệ thống tự tách: Ký hiệu = C26TAP, Số HĐ = 00001765.\n'
-        'Không cần tách sẵn ra 2 cột.', 'HDDT Checker', width=260, height=110)
+        'Không cần tách sẵn ra 2 cột.', 'HDDT Checker', width=260, height=120)
     ws.cell(row=1, column=4).comment = Comment(
+        'Loại hóa đơn (bắt buộc)\n'
         'Chỉ nhận 1 trong 2 giá trị:\n'
         '  GTGT       = Hóa đơn điện tử giá trị gia tăng\n'
-        '  Ban_hang   = Hóa đơn điện tử bán hàng', 'HDDT Checker', width=260, height=80)
+        '  Ban_hang   = Hóa đơn điện tử bán hàng', 'HDDT Checker', width=260, height=90)
     ws.cell(row=1, column=5).comment = Comment(
-        'Số nguyên, không dấu chấm/phẩy. Ví dụ: 746618472', 'HDDT Checker', width=220, height=50)
+        'Tiền thanh toán (bắt buộc)\n'
+        'Số nguyên, không dấu chấm/phẩy. Ví dụ: 746618472', 'HDDT Checker', width=220, height=60)
 
     ws.freeze_panes = 'A2'
     ws.auto_filter.ref = f'A1:{get_column_letter(len(TEMPLATE_COLUMNS))}1'

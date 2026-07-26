@@ -71,13 +71,15 @@ class InvoiceCheckerWeb:
       chromium_path  — đường dẫn Chromium (None = Playwright tự tìm)
       max_captcha    — số lần thử captcha tối đa
       page_wait      — giây chờ sau submit
+      headless       — True (mặc định) = chạy ẩn; False = hiện cửa sổ Chromium
+                       (chỉ có ý nghĩa khi máy có màn hình thật, vd Windows)
       progress_cb    — callback(processed, total, yes, no, captcha_err, error)
       log_cb         — callback(str_message)
       stop_event     — threading.Event để dừng từ ngoài
     """
 
     def __init__(self, input_path, output_dir, screenshot_dir,
-                 chromium_path=None, max_captcha=5, page_wait=2.5,
+                 chromium_path=None, max_captcha=5, page_wait=2.5, headless=True,
                  progress_cb=None, log_cb=None, stop_event=None):
         self.input_path     = input_path
         self.output_dir     = output_dir
@@ -85,6 +87,7 @@ class InvoiceCheckerWeb:
         self.chromium_path  = chromium_path
         self.max_captcha    = max_captcha
         self.page_wait      = page_wait
+        self.headless       = headless
         self.progress_cb    = progress_cb or (lambda **kw: None)
         self._log_cb        = log_cb or (lambda msg: None)
         self.stop_event     = stop_event
@@ -386,9 +389,14 @@ class InvoiceCheckerWeb:
 
     # ── Zip screenshots ──────────────────────────────────────
     def zip_screenshots(self, zip_path):
-        """Nén tất cả ảnh trong screenshot_dir thành 1 file zip."""
+        """Gom tất cả ảnh trong screenshot_dir thành 1 file zip để tải 1 lượt.
+
+        Dùng ZIP_STORED (không nén thêm) thay vì ZIP_DEFLATED: ảnh PNG đã tự
+        nén sẵn nên nén lại gần như không giảm dung lượng, chỉ tốn CPU vô ích
+        — đáng kể với vài trăm ảnh trên máy yếu (Pi4/NAS).
+        """
         count = 0
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_STORED) as zf:
             for f in sorted(os.listdir(self.screenshot_dir)):
                 if f.lower().endswith('.png'):
                     zf.write(os.path.join(self.screenshot_dir, f), f)
@@ -413,7 +421,7 @@ class InvoiceCheckerWeb:
                          yes=0, no=0, captcha_err=0, error=0)
 
         launch_opts = dict(
-            headless=True,
+            headless=self.headless,
             args=['--no-sandbox', '--disable-setuid-sandbox',
                   '--disable-dev-shm-usage',
                   '--disable-blink-features=AutomationControlled']

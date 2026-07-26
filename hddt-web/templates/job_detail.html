@@ -182,6 +182,12 @@
       <div class="row g-1">
         <div class="col-5 text-muted">File đầu vào:</div><div class="col-7 text-truncate">{{ job.input_filename }}</div>
         <div class="col-5 text-muted">File kết quả:</div><div class="col-7 text-truncate">{{ job.output_filename or '—' }}</div>
+        <div class="col-5 text-muted">Thư mục lưu:</div>
+        <div class="col-7 text-truncate" title="{{ job.custom_save_dir or 'Mặc định' }}">
+          {{ job.custom_save_dir or 'Mặc định' }}
+        </div>
+        <div class="col-5 text-muted">Chế độ trình duyệt:</div>
+        <div class="col-7">{{ 'Ẩn (headless)' if job.headless else 'Hiện cửa sổ' }}</div>
         {% if job.error_msg %}
         <div class="col-12 mt-2">
           <div class="alert alert-danger py-2 mb-0 small">
@@ -255,7 +261,8 @@ if (polling) {
 {% if job.status == 'done' and results %}
 $(document).ready(function() {
   $('#resultsTable').DataTable({
-    pageLength: 25,
+    pageLength: 50,
+    lengthMenu: [[50, 100, 300, 500, 1000, -1], [50, 100, 300, 500, 1000, 'Tất cả']],
     language: {
       search: 'Tìm kiếm:',
       lengthMenu: 'Hiện _MENU_ dòng',

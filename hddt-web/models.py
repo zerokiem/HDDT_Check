@@ -60,6 +60,13 @@ class Job(db.Model):
     # Results stored as JSON string
     results_json    = db.Column(db.Text, nullable=True)
     error_msg       = db.Column(db.Text, nullable=True)
+    # Thư mục lưu Excel+ảnh do người dùng tự nhập lúc upload — trống = dùng
+    # mặc định (DATA_DIR/outputs, DATA_DIR/screenshots).
+    custom_save_dir = db.Column(db.String(512), nullable=True)
+    # True = chạy Chromium ẩn (headless). False = hiện cửa sổ trình duyệt —
+    # chỉ có tác dụng khi chạy trực tiếp trên Windows có màn hình (bị ép về
+    # True khi chạy trong Docker/Linux không có display).
+    headless        = db.Column(db.Boolean, default=True)
 
     def duration_str(self):
         if not self.started_at:

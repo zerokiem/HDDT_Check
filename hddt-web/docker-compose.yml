@@ -28,6 +28,9 @@ services:
       - MAX_CAPTCHA_AUTO=${MAX_CAPTCHA_AUTO:-5}
       - PAGE_WAIT=${PAGE_WAIT:-2.5}
       - TZ=${TZ:-Asia/Ho_Chi_Minh}
+      - COPYRIGHT_OWNER=${COPYRIGHT_OWNER:-Nguyễn Xuân Bình}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
     volumes:
       # Code = chính thư mục hddt-web/ này (app.py, checker_web.py...). Sửa
       # code xong chỉ cần `docker compose restart`, không cần build lại image.

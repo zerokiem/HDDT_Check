@@ -1,7 +1,13 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).parent
+
+# Đọc file .env cạnh app.py nếu có (chạy Docker: đã có sẵn qua environment:
+# trong docker-compose.yml nên dòng này chỉ là no-op vô hại; chạy Windows
+# native không qua Docker: đây là cách duy nhất nạp .env, vd TELEGRAM_*).
+load_dotenv(BASE_DIR / '.env')
 
 # Thư mục dữ liệu (DB, upload, output, ảnh, log):
 #   - Docker/Linux (NAS, Pi4): luôn set biến môi trường DATA_DIR=/data (xem
@@ -44,3 +50,11 @@ class Config:
     # Captcha
     MAX_CAPTCHA_AUTO = int(os.environ.get('MAX_CAPTCHA_AUTO', '5'))
     PAGE_WAIT = float(os.environ.get('PAGE_WAIT', '2.5'))
+
+    # Telegram (tùy chọn) — thông báo khi đăng nhập + khi kiểm tra xong. Để
+    # trống 1 trong 2 biến = tắt hoàn toàn (không lỗi, chỉ im lặng bỏ qua).
+    TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+    TELEGRAM_CHAT_ID   = os.environ.get('TELEGRAM_CHAT_ID', '')
+
+    # Bản quyền hiển thị ở footer web.
+    COPYRIGHT_OWNER = os.environ.get('COPYRIGHT_OWNER', 'Nguyễn Xuân Bình')
